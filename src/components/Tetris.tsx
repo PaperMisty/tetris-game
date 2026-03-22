@@ -449,26 +449,36 @@ const Tetris: FC = () => {
           from { opacity: 0; transform: translateY(-20px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @media (max-width: 800px) {
+        
+        /* 强制全平台横向并排规划 */
+        .TetrisContainer {
+          flex-direction: row !important;
+          flex-wrap: nowrap !important;
+          transform-origin: top center;
+          transition: transform 0.3s ease;
+        }
+
+        @media (max-width: 750px) {
           .TetrisContainer {
-            flex-direction: column !important;
-            align-items: center !important;
-            gap: 15px !important;
-          }
-          aside {
-            width: 100% !important;
-            max-width: 320px !important;
-            flex: none !important;
-          }
-          .HistoryBtn {
-            top: 10px !important;
-            right: 10px !important;
+            transform: scale(0.85);
           }
         }
         @media (max-width: 600px) {
-          .Stage {
-            transform: scale(0.85);
-            transform-origin: top center;
+          .TetrisContainer {
+            transform: scale(0.75);
+          }
+          .HistoryBtn {
+            top: -40px !important;
+          }
+        }
+        @media (max-width: 500px) {
+          .TetrisContainer {
+            transform: scale(0.65);
+          }
+        }
+        @media (max-width: 400px) {
+          .TetrisContainer {
+            transform: scale(0.55);
           }
         }
       `}</style>
