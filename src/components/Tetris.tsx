@@ -15,6 +15,7 @@ import Display from './Display';
 import StartButton from './StartButton';
 import HistoryBoard from './HistoryBoard';
 import Cell from './Cell';
+import MobileControls from './MobileControls';
 
 interface AITarget {
   x: number;
@@ -27,6 +28,7 @@ const Tetris: FC = () => {
   const [gameOver, setGameOver] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isAIMode, setIsAIMode] = useState<boolean>(false);
+  const [showHistory, setShowHistory] = useState<boolean>(false);
   
   const [aiTarget, setAiTarget] = useState<AITarget | null>(null);
   const [currentAiRot, setCurrentAiRot] = useState(0);
@@ -38,12 +40,9 @@ const Tetris: FC = () => {
 
   // 1. AI 决策触发逻辑 - 修复“切入卡死”问题
   useEffect(() => {
-    // 只要开启了 AI 模式且没有正在执行的任务，就开始决策
     if (isAIMode && !isPaused && !gameOver && dropTime !== null && !aiTarget) {
-      // 这里的决策逻辑不再限制于 y == 0
       const best = findBestMove(board, player.tetromino, player.pos.y);
       setAiTarget({ ...best, isDone: false });
-      // 注意：当方块已经在空中时，之前的旋转次数我们假设为 0 (AI接管时的初始状态)
       setCurrentAiRot(0);
     }
   }, [isAIMode, isPaused, gameOver, board, player, dropTime, aiTarget]);
@@ -52,20 +51,16 @@ const Tetris: FC = () => {
   useEffect(() => {
     if (isAIMode && !isPaused && !gameOver && aiTarget && !aiTarget.isDone) {
       const stepTimer = setTimeout(() => {
-        // AI 接管后的指令序列
-        // A. 优先旋转同步
         if (currentAiRot < aiTarget.rotation) {
           playerRotate(board, 1);
           playRotateSound();
           setCurrentAiRot(prev => prev + 1);
         }
-        // B. 左右平移同步
         else if (player.pos.x < aiTarget.x) {
           movePlayer(1);
         } else if (player.pos.x > aiTarget.x) {
           movePlayer(-1);
         }
-        // C. 落位执行
         else {
           setAiTarget(prev => prev ? { ...prev, isDone: true } : null);
           const finalY = calculateFinalY(player, board);
@@ -145,7 +140,7 @@ const Tetris: FC = () => {
     setIsAIMode(targetState);
     
     if (targetState) {
-      setAiTarget(null); // 强制重置目标触发重新决策
+      setAiTarget(null);
       if (gameOver || dropTime === null) {
         startGame();
         setIsAIMode(true);
@@ -226,7 +221,7 @@ const Tetris: FC = () => {
       });
     }
     return (
-      <div style={{ display: 'grid', gridTemplateRows: 'repeat(4, 25px)', gridTemplateColumns: 'repeat(4, 25px)', gap: '2px', background: '#111', padding: '10px', borderRadius: '10px', border: '2px solid rgba(0,255,128,0.2)', margin: '0 0 20px 0', boxSizing: 'border-box', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5), 0 0 10px rgba(0,255,128,0.1)' }}>
+      <div style={{ display: 'grid', gridTemplateRows: 'repeat(4, minmax(15px, 25px))', gridTemplateColumns: 'repeat(4, minmax(15px, 25px))', gap: '2px', background: '#111', padding: '10px', borderRadius: '10px', border: '2px solid rgba(0,255,128,0.2)', margin: '0 0 20px 0', boxSizing: 'border-box', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5), 0 0 10px rgba(0,255,128,0.1)' }}>
         {previewGrid.map((row, y) => row.map((type, x) => <Cell key={`${x}-${y}`} type={type as any} />))}
       </div>
     );
@@ -241,31 +236,54 @@ const Tetris: FC = () => {
         if (!gameOver) move(e);
       }}
       onKeyUp={keyUp as any}
+      className="TetrisContainer"
       style={{
         display: 'flex',
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'center',
         background: 'transparent',
-        width: '100%',
-        maxWidth: '1200px',
+        width: 'fit-content',
+        maxWidth: '100%',
         margin: '0 auto',
-        gap: '30px',
+        gap: '20px',
         outline: 'none',
-        flexWrap: 'nowrap'
+        position: 'relative'
       }}
     >
-      <div style={{ width: '280px', flexShrink: 0 }}>
-        <div style={{ color: '#00ff80', textShadow: '0 0 5px rgba(0,255,128,0.5)', margin: '0 0 10px 0', fontFamily: 'Consolas, monospace', fontWeight: 'bold', fontSize: '1.2rem'}}>🏆 历史战绩</div>
-        <HistoryBoard history={history} />
-      </div>
+      {/* 右上角排行榜入口 */}
+      <button
+        onClick={() => { playButtonSound(); setShowHistory(true); }}
+        className="HistoryBtn"
+        style={{
+          position: 'absolute',
+          top: '-60px',
+          right: '0',
+          background: 'rgba(0, 255, 128, 0.15)',
+          border: '2px solid #00ff80',
+          borderRadius: '50%',
+          width: '45px',
+          height: '45px',
+          fontSize: '1.3rem',
+          cursor: 'pointer',
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 15px rgba(0, 255, 128, 0.3)',
+          transition: 'all 0.2s'
+        }}
+        title="查看历史排行榜"
+      >
+        🏆
+      </button>
 
-      <div style={{ width: 'auto', position: 'relative' }}>
+      <div style={{ width: 'auto', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
         <Stage stage={board} />
         {isAIMode && !gameOver && (
           <div style={{
             position: 'absolute',
-            top: '50%',
+            top: '35%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
             pointerEvents: 'none',
@@ -275,26 +293,36 @@ const Tetris: FC = () => {
               background: 'rgba(0, 0, 0, 0.4)',
               border: '2px solid #00ff80',
               color: '#00ff80',
-              padding: '10px 20px',
+              padding: '8px 16px',
               borderRadius: '10px',
               fontFamily: 'monospace',
-              fontSize: '1.5rem',
+              fontSize: '1.2rem',
               fontWeight: 'bold',
               boxShadow: '0 0 30px rgba(0, 255, 128, 0.3)',
               whiteSpace: 'nowrap',
               animation: 'aiPulse 1s infinite'
             }}>
-              🤖 PIERRE AI THINKING...
+              🤖 PIERRE AI
             </div>
           </div>
         )}
+        <MobileControls 
+          movePlayer={movePlayer}
+          playerRotate={playerRotate}
+          drop={drop}
+          hardDrop={hardDrop}
+          isAIMode={isAIMode}
+          gameOver={gameOver}
+          isPaused={isPaused}
+          board={board}
+        />
       </div>
 
-      <aside style={{ width: '300px', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+      <aside style={{ width: '250px', flex: '0 0 250px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {gameOver ? (
-          <Display gameOver={gameOver} text="👾 游戏结束 Game Over!" />
+          <Display gameOver={gameOver} text="👾 游戏结束!" />
         ) : (
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <Display text={`🔹 得分: ${score}`} />
             <Display text={`🔹 行数: ${rows}`} />
             <Display text={`🔹 等级: ${level}`} />
@@ -302,55 +330,146 @@ const Tetris: FC = () => {
           </div>
         )}
         
-        <div style={{color: '#00ff80', textShadow: '0 0 5px rgba(0,255,128,0.5)', margin: '0 0 10px 0', fontFamily: 'sans-serif', fontWeight: 'bold'}}>✨ 下一个 Next：</div>
+        <div style={{color: '#00ff80', textShadow: '0 0 5px rgba(0,255,128,0.5)', margin: '5px 0', fontFamily: 'sans-serif', fontWeight: 'bold', fontSize: '0.9rem'}}>✨ 下一个 Next：</div>
         {renderPreview()}
 
-        <StartButton callback={startGame} text={gameOver ? "重新挑战" : "开始游戏"} />
-        {!gameOver && <StartButton callback={togglePause} text={isPaused ? "继续游戏" : "暂停游戏"} />}
-        
-        <button
-          onClick={toggleAI}
-          style={{
-            boxSizing: 'border-box',
-            margin: '0 0 20px 0',
-            padding: '16px',
-            borderRadius: '8px',
-            border: isAIMode ? 'none' : '4px solid #00ff80',
-            background: isAIMode ? '#00ff80' : 'rgba(0,0,0,0.5)',
-            color: isAIMode ? '#111' : '#00ff80',
-            fontFamily: 'Inter, sans-serif',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            boxShadow: isAIMode ? '0 0 30px #00ff80' : 'none',
-            transition: 'all 0.3s'
-          }}
-        >
-          {isAIMode ? "停止 AI 自动博弈" : "开启 Pierre AI 自动博弈"}
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <StartButton callback={startGame} text={gameOver ? "重新挑战" : "开始游戏"} />
+          {!gameOver && <StartButton callback={togglePause} text={isPaused ? "继续游戏" : "暂停游戏"} />}
+          
+          <button
+            onClick={toggleAI}
+            style={{
+              boxSizing: 'border-box',
+              padding: '12px',
+              borderRadius: '8px',
+              border: isAIMode ? 'none' : '2px solid #00ff80',
+              background: isAIMode ? '#00ff80' : 'rgba(0,0,0,0.5)',
+              color: isAIMode ? '#111' : '#00ff80',
+              fontFamily: 'Inter, sans-serif',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: isAIMode ? '0 0 20px #00ff80' : 'none',
+              transition: 'all 0.3s'
+            }}
+          >
+            {isAIMode ? "停止 AI 博弈" : "开启 Pierre AI"}
+          </button>
+        </div>
 
         {aiTarget && isAIMode && (
           <div style={{
-            marginTop: '10px',
-            padding: '10px',
+            marginTop: '5px',
+            padding: '8px',
             border: '1px solid rgba(0, 255, 128, 0.3)',
             borderRadius: '8px',
             background: 'rgba(0,0,0,0.3)',
             color: '#00ff80',
-            fontSize: '0.9rem',
+            fontSize: '0.8rem',
             fontFamily: 'monospace'
           }}>
-            <div>📍 目标轨迹定位...</div>
-            <div style={{fontSize: '0.8rem', opacity: 0.7}}>目标 X: {aiTarget.x} | 旋转: {aiTarget.rotation}</div>
+            <div>📍 目标轨迹 X:{aiTarget.x} | R:{aiTarget.rotation}</div>
           </div>
         )}
       </aside>
+
+      {/* 排行榜弹窗 */}
+      {showHistory && (
+        <div 
+          onClick={() => setShowHistory(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            cursor: 'default'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '90%',
+              maxWidth: '400px',
+              background: '#111',
+              border: '2px solid #00ff80',
+              borderRadius: '20px',
+              padding: '25px',
+              boxShadow: '0 0 50px rgba(0, 255, 128, 0.4)',
+              position: 'relative',
+              animation: 'modalSlideIn 0.3s ease-out'
+            }}
+          >
+            <button
+              onClick={() => setShowHistory(false)}
+              style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                background: 'transparent',
+                border: 'none',
+                color: '#00ff80',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                opacity: 0.7
+              }}
+            >
+              ❌
+            </button>
+            <div style={{ 
+              color: '#00ff80', 
+              textShadow: '0 0 5px rgba(0,255,128,0.5)', 
+              margin: '0 0 20px 0', 
+              fontFamily: 'Consolas, monospace', 
+              fontWeight: 'bold', 
+              fontSize: '1.4rem',
+              textAlign: 'center'
+            }}>
+              🏆 历史战绩榜
+            </div>
+            <HistoryBoard history={history} />
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes aiPulse {
           0% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.95); }
           50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
           100% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.95); }
+        }
+        @keyframes modalSlideIn {
+          from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @media (max-width: 800px) {
+          .TetrisContainer {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 15px !important;
+          }
+          aside {
+            width: 100% !important;
+            max-width: 320px !important;
+            flex: none !important;
+          }
+          .HistoryBtn {
+            top: 10px !important;
+            right: 10px !important;
+          }
+        }
+        @media (max-width: 600px) {
+          .Stage {
+            transform: scale(0.85);
+            transform-origin: top center;
+          }
         }
       `}</style>
     </div>

@@ -9,6 +9,7 @@ interface Props {
 const Stage: FC<Props> = ({ stage }) => (
   // 固定它的最小与最大高宽以便在左右面板结构更协调
   <div
+    className="Stage"
     style={{
       display: 'grid',
       gridTemplateRows: `repeat(${stage.length}, 30px)`,
