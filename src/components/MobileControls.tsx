@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { FC } from 'react';
 
 interface MobileControlsProps {
@@ -21,6 +22,8 @@ const MobileControls: FC<MobileControlsProps> = ({
   isPaused,
   board
 }) => {
+  const lastClickTime = useRef(0);
+
   if (isAIMode || gameOver || isPaused) return null;
 
   const buttonStyle: React.CSSProperties = {
@@ -42,7 +45,15 @@ const MobileControls: FC<MobileControlsProps> = ({
   };
 
   const handlePress = (e: React.MouseEvent | React.TouchEvent, action: () => void) => {
-    e.preventDefault();
+    // 阻止浏览器模拟的点击事件
+    if (e.cancelable) e.preventDefault();
+    
+    const now = Date.now();
+    // 200ms 内的重复触发判定为同一动作
+    if (now - lastClickTime.current < 200) {
+      return;
+    }
+    lastClickTime.current = now;
     action();
   };
 
@@ -100,7 +111,7 @@ const MobileControls: FC<MobileControlsProps> = ({
       </div>
       
       <div style={{ fontSize: '0.8rem', color: 'rgba(0, 255, 128, 0.5)', fontFamily: 'monospace' }}>
-        MOBILE TOUCH CONTROLS READY
+        CONTROL DEBOUNCE ACTIVE
       </div>
     </div>
   );
