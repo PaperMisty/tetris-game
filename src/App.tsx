@@ -18,6 +18,7 @@ function App() {
         NEON TETRIS
       </h1>
       <Tetris />
+      <div className="vibe-footer">vibe-coding by Fanhoubao</div>
     </div>
   );
 }
